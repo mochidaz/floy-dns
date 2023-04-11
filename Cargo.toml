@@ -1,0 +1,17 @@
+[package]
+name = "floy-dns"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = { version = "0.5.0-rc.3", features = ["json"] }
+jsonwebtoken = "7"
+sha256 = "1.1.2"
+serde = { version = "1.0.125", features = ["derive"] }
+rocket_dyn_templates = { version = "0.1.0-rc.1", features = ["handlebars"] }
+sha2 = "0.10.1"
+bcrypt = "0.14.0"
+tokio = { version = "1.16", features = ["full"] }
+chrono = "0.4.19"
