@@ -5,9 +5,12 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::http::{Method, Status};
 use rocket::fairing::Fairing;
+use rocket::http::{Method, Status};
 
+use crate::config::Config;
+use crate::endpoints::build_endpoints;
+use crate::errors::build_catchers;
 use crate::writers::Writer;
 
 mod writers;
@@ -16,11 +19,18 @@ mod utils;
 mod endpoints;
 mod models;
 mod jwt;
+mod cloudflare;
+mod config;
 
 #[launch]
 async fn rocket() -> rocket::Rocket<rocket::Build> {
-    let writer = Writer::new(String::from("test.txt")).await.unwrap();
-    rocket::build()
+    let config = Config::new();
+    let writer = Writer::new(config.database_path.clone()).await.unwrap();
+    let cloudflare = cloudflare::Cloudflare::new(config.clone()).await;
+
+    build_endpoints().await
         .manage(writer)
-        .mount("/", routes![endpoints::register, endpoints::login])
+        .manage(config)
+        .manage(cloudflare)
+        .attach(build_catchers().await)
 }

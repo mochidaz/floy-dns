@@ -1,20 +1,18 @@
 use std::collections::HashMap;
-use std::io::{Write, Read};
-use std::fs;
 use std::convert;
-use std::path::{Path, PathBuf};
 use std::convert::AsRef;
+use std::fs;
 use std::ops::Deref;
+use std::path::{Path, PathBuf};
 
 use rocket::request::{FromRequest, Outcome};
 use rocket::serde::json::serde_json;
-
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::sync::Mutex;
 
 use crate::errors::ErrorKind;
-
+use crate::models::User;
 
 pub struct Writer<T: AsRef<Path>> {
     text_file: T,
@@ -38,7 +36,7 @@ impl<T: AsRef<Path>> Writer<T> {
 
     pub async fn write(&self, text: &str) -> Result<(), std::io::Error> {
         let mut file = self.file.lock().await;
-        file.write_all(text.as_bytes()).await?;
+        file.write(text.as_bytes()).await?;
         file.flush().await?;
         Ok(())
     }
@@ -49,42 +47,30 @@ impl<T: AsRef<Path>> Writer<T> {
         Ok(())
     }
 
-    pub async fn exists(&self, key: &str) -> Result<bool, std::io::Error> {
-        let mut file = self.file.lock().await;
-        let mut contents = String::new();
+    pub async fn find(&self, key: &str) -> Result<Option<User>, std::io::Error> {
+        let mut file = BufReader::new(File::open(&self.text_file).await?);
 
-        file.read_to_string(&mut contents).await?;
+        let mut content = String::new();
 
-        for line in contents.split("\r") {
-            let map: Vec<String> = line.trim()
+        file.read_to_string(&mut content).await?;
+
+        for i in content.split("\r").collect::<Vec<&str>>() {
+            let map: Vec<String> = i.trim()
                 .split(":")
                 .map(|s| s.to_string())
                 .collect();
-            if map[0] == key {
-                return Ok(true);
+            if map[0].is_empty() {
+                continue;
+            }
+            if map[0] == key || map[1] == key {
+                return Ok(Some(User {
+                    subdomain_claim: map[0].clone(),
+                    email: map[1].clone(),
+                    password: map[2].clone(),
+                }))
             }
         }
 
-        Ok(false)
-    }
-
-    pub async fn find(&self, key: &str) -> Result<Option<HashMap<String, String>>, std::io::Error> {
-        let mut file = self.file.lock().await;
-        let mut contents = String::new();
-
-        file.read_to_string(&mut contents).await?;
-
-        for line in contents.split("\r") {
-            let map: Vec<String> = line.trim()
-                .split(":")
-                .map(|s| s.to_string())
-                .collect();
-            if map[0] == key {
-                return Ok(Some(HashMap::from([
-                    (map[0].clone(), map[1].clone())
-                ])))
-            }
-        }
         Ok(None)
     }
 }

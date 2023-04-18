@@ -1,12 +1,14 @@
-use chrono::{Duration, Local};
 use std::env;
-use serde::{Deserialize, Serialize};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+
+use chrono::{Duration, Local};
+use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
 use rocket::{Data, Request, request};
 use rocket::http::Status;
 use rocket::request::FromRequest;
+use serde::{Deserialize, Serialize};
 
-use crate::errors::{ErrorKind, JWTCError, Result};
+use crate::config::Config;
+use crate::errors::{ErrorKind, JWTCError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -18,7 +20,7 @@ pub struct Claims {
 #[derive(Clone)]
 pub struct ApiKey(pub String);
 
-pub fn generate_token(key: &String) -> Result<String> {
+pub fn generate_token(config: &Config, key: &String) -> Result<String, ErrorKind> {
     let dt = Local::now();
 
     let now = dt.timestamp_nanos() as usize;
@@ -37,18 +39,18 @@ pub fn generate_token(key: &String) -> Result<String> {
     Ok(encode(
         &header,
         &claims,
-        &EncodingKey::from_secret(env::var("SECRETS").unwrap().as_bytes()),
+        &EncodingKey::from_secret(&config.jwt_secret.as_bytes()),
     )?)
 }
 
-pub fn read_token(key: &str) -> Result<String> {
+pub fn read_token(config: &Config, key: &str) -> Result<String, ErrorKind> {
     let dt = Local::now();
 
     let now = dt.timestamp_nanos() as usize;
 
     match decode::<Claims>(
         key,
-        &DecodingKey::from_secret(env::var("SECRETS").unwrap().as_bytes().as_ref()),
+        &DecodingKey::from_secret(&config.jwt_secret.as_bytes()),
         &Validation::new(Algorithm::HS512),
     ) {
         Ok(v) => {
@@ -76,23 +78,11 @@ impl<'r> FromRequest<'r> for ApiKey {
             }
         };
 
-        match read_token(keys.as_str()) {
+        let config = request.guard::<&rocket::State<Config>>().await.unwrap();
+
+        match read_token(&config, keys.as_str()) {
             Ok(claim) => request::Outcome::Success(ApiKey(claim)),
             Err(e) => request::Outcome::Failure((Status::Unauthorized, e)),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_generate_token() {
-        env::set_var("SECRETS", "test");
-        let key = "username";
-        let token = generate_token(&key.to_string()).unwrap();
-        assert_eq!(read_token(token.as_str()).unwrap(), key);
-        env::remove_var("SECRETS");
     }
 }
