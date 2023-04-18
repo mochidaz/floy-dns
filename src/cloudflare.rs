@@ -9,7 +9,7 @@ use rocket_dyn_templates::handlebars::JsonValue;
 use tokio::io::AsyncReadExt;
 use tokio::sync::RwLock;
 
-use crate::config::{Config, ConfigGuard};
+use crate::config::Config;
 use crate::errors::ErrorKind;
 use crate::models::{DnsRecord, Record, Records};
 
@@ -65,7 +65,13 @@ impl Cloudflare {
             return Err(ErrorKind::Error("Failed to add DNS record".to_string()));
         }
 
-        let wildcard_body = DnsRecord::new("A".to_owned(), format!("*.{}", &name), 1, ip.to_owned(), false);
+        let wildcard_body = DnsRecord::new(
+            "A".to_owned(),
+            format!("*.{}", &name),
+            1,
+            ip.to_owned(),
+            false,
+        );
 
         let res = client
             .post(&url)
@@ -112,7 +118,10 @@ impl Cloudflare {
                 return Err(ErrorKind::Error("Failed to get DNS record".to_string()));
             }
 
-            Ok((record.result[0].content.clone(), record.result[0].id.clone()))
+            Ok((
+                record.result[0].content.clone(),
+                record.result[0].id.clone(),
+            ))
         } else {
             Err(ErrorKind::Error("Failed to get DNS record".to_string()))
         }
@@ -124,9 +133,7 @@ impl Cloudflare {
         ip: &String,
     ) -> Result<(), ErrorKind> {
         let record = match &self.get_subdomain_dns_record(subdomain, false).await {
-            Ok(r) => {
-                r.clone()
-            }
+            Ok(r) => r.clone(),
             Err(_) => {
                 return Err(ErrorKind::Error("Subdomain does not exist".to_string()));
             }
@@ -176,28 +183,5 @@ impl Cloudflare {
         } else {
             Err(ErrorKind::Error("Failed to update DNS record".to_string()))
         }
-    }
-}
-
-pub struct CloudflareGuard(pub Cloudflare);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for CloudflareGuard {
-    type Error = ErrorKind;
-
-    async fn from_request(request: &'r Request<'_>) -> Outcome<CloudflareGuard, ErrorKind> {
-        let cloudflare = request.guard::<&rocket::State<Config>>().await.unwrap();
-
-        Outcome::Success(CloudflareGuard(
-            Cloudflare::new(Config::from(cloudflare)).await,
-        ))
-    }
-}
-
-impl Deref for CloudflareGuard {
-    type Target = Cloudflare;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
     }
 }

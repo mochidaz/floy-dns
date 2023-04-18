@@ -1,28 +1,28 @@
 use bcrypt::verify;
 use reqwest::{get, redirect};
+use rocket::{Build, Rocket, State};
 use rocket::http::Status;
 use rocket::response::Redirect;
-use rocket::serde::json::serde_json::json;
 use rocket::serde::json::Json;
-use rocket::{Build, Rocket};
+use rocket::serde::json::serde_json::json;
 use rocket_dyn_templates::handlebars::JsonValue;
 
-use crate::cloudflare::CloudflareGuard;
-use crate::config::{Config, ConfigGuard};
+use crate::cloudflare::Cloudflare;
+use crate::config::Config;
 use crate::errors::ErrorKind;
 use crate::errors::ErrorKind::Error;
-use crate::jwt::{generate_token, read_token, ApiKey};
-use crate::models::{Login, User, WhoAmI, DNS};
+use crate::jwt::{ApiKey, generate_token, read_token};
+use crate::models::{DNS, Login, User, WhoAmI};
 use crate::utils::{
     find_subdomain_claim, hash_password, send_verification_email, validate_email, validate_username,
 };
-use crate::writers::{Writer, WriterConn};
+use crate::writers::Writer;
 
 #[post("/register", data = "<data>")]
 async fn register(
-    config: ConfigGuard,
+    config: &State<Config>,
     data: Json<User>,
-    writer: WriterConn,
+    writer: &State<Writer<String>>,
 ) -> Result<Json<JsonValue>, Status> {
     let user = data.into_inner();
 
@@ -76,8 +76,8 @@ async fn register(
 #[post("/auth", data = "<data>")]
 async fn auth(
     data: Json<Login>,
-    writer: WriterConn,
-    config: ConfigGuard,
+    writer: &State<Writer<String>>,
+    config: &State<Config>,
 ) -> Result<Json<JsonValue>, Status> {
     let user = data.into_inner();
 
@@ -108,7 +108,7 @@ async fn auth(
 }
 
 #[get("/whoami")]
-async fn whoami(writer: WriterConn, key: ApiKey) -> Result<Json<JsonValue>, Status> {
+async fn whoami(writer: &State<Writer<String>>, key: ApiKey) -> Result<Json<JsonValue>, Status> {
     let user = match writer.find(&key.0).await {
         Ok(user) => match user {
             Some(user) => user,
@@ -132,9 +132,9 @@ async fn whoami(writer: WriterConn, key: ApiKey) -> Result<Json<JsonValue>, Stat
 
 #[get("/verify?<token>")]
 async fn verify_account(
-    config: ConfigGuard,
+    config: &State<Config>,
     token: Option<String>,
-    writer: WriterConn,
+    writer: &State<Writer<String>>,
 ) -> Result<Redirect, Status> {
     let token = match token {
         Some(token) => token,
@@ -166,9 +166,9 @@ async fn verify_account(
 
 #[get("/dns")]
 async fn dns(
-    config: ConfigGuard,
-    cloudflare: CloudflareGuard,
-    writer: WriterConn,
+    config: &State<Config>,
+    cloudflare: &State<Cloudflare>,
+    writer: &State<Writer<String>>,
     key: ApiKey,
 ) -> Result<Json<JsonValue>, Status> {
     let user = match find_subdomain_claim(&writer, &key.0)
@@ -189,7 +189,8 @@ async fn dns(
     {
         Ok(dns_entry) => dns_entry,
         Err(_) => return Err(Status::NotFound),
-    }.0;
+    }
+    .0;
 
     Ok(Json(json!(
         {
@@ -202,9 +203,9 @@ async fn dns(
 
 #[post("/dns", data = "<dns>")]
 async fn dns_add(
-    config: ConfigGuard,
-    cloudflare: CloudflareGuard,
-    writer: WriterConn,
+    config: &State<Config>,
+    cloudflare: &State<Cloudflare>,
+    writer: &State<Writer<String>>,
     key: ApiKey,
     dns: Json<DNS>,
 ) -> Result<Json<JsonValue>, Status> {
@@ -239,9 +240,9 @@ async fn dns_add(
 
 #[put("/dns", data = "<dns>")]
 async fn dns_update(
-    config: ConfigGuard,
-    cloudflare: CloudflareGuard,
-    writer: WriterConn,
+    config: &State<Config>,
+    cloudflare: &State<Cloudflare>,
+    writer: &State<Writer<String>>,
     key: ApiKey,
     dns: Json<DNS>,
 ) -> Result<Json<JsonValue>, Status> {
