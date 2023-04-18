@@ -189,7 +189,7 @@ async fn dns(
     {
         Ok(dns_entry) => dns_entry,
         Err(_) => return Err(Status::NotFound),
-    };
+    }.0;
 
     Ok(Json(json!(
         {
@@ -262,7 +262,7 @@ async fn dns_update(
         .map_err(|_| Status::InternalServerError)
     {
         Ok(_) => {}
-        Err(_) => return Err(Status::Conflict),
+        Err(_) => return Err(Status::NotFound),
     };
 
     Ok(Json(json!(

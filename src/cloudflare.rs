@@ -85,9 +85,9 @@ impl Cloudflare {
         &self,
         subdomain: &String,
         wildcard: bool,
-    ) -> Result<String, ErrorKind> {
+    ) -> Result<(String, String), ErrorKind> {
         let name = if wildcard {
-            format!("*.{}", subdomain)
+            format!("*.{}.{}", subdomain, &self.config.dns_suffix)
         } else {
             format!("{}.{}", subdomain, &self.config.dns_suffix)
         };
@@ -112,7 +112,7 @@ impl Cloudflare {
                 return Err(ErrorKind::Error("Failed to get DNS record".to_string()));
             }
 
-            Ok(record.result[0].content.clone())
+            Ok((record.result[0].content.clone(), record.result[0].id.clone()))
         } else {
             Err(ErrorKind::Error("Failed to get DNS record".to_string()))
         }
@@ -123,11 +123,13 @@ impl Cloudflare {
         subdomain: &String,
         ip: &String,
     ) -> Result<(), ErrorKind> {
-        match &self.get_subdomain_dns_record(subdomain, false).await {
-            Ok(_) => {
-                return Err(ErrorKind::Error("Subdomain already exists".to_string()));
+        let record = match &self.get_subdomain_dns_record(subdomain, false).await {
+            Ok(r) => {
+                r.clone()
             }
-            Err(_) => {}
+            Err(_) => {
+                return Err(ErrorKind::Error("Subdomain does not exist".to_string()));
+            }
         };
 
         let name = format!("{}.{}", subdomain, &self.config.dns_suffix);
@@ -137,10 +139,11 @@ impl Cloudflare {
             "https://api.cloudflare.com/client/v4/zones/{}/dns_records",
             &self.config.cf_zone_id
         );
+
         let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), false);
 
         let res = client
-            .put(&url)
+            .put(format!("{}/{}", &url, record.1))
             .bearer_auth(&self.config.cf_api_key)
             .body(body.to_string())
             .send()
@@ -162,7 +165,7 @@ impl Cloudflare {
         );
 
         let wildcard_res = client
-            .put(&url)
+            .put(&format!("{}/{}", &url, wildcard_record.1))
             .bearer_auth(&self.config.cf_api_key)
             .body(wildcard_body.to_string())
             .send()

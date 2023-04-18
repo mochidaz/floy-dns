@@ -29,6 +29,7 @@ pub struct DNS {
 
 #[derive(Serialize, Deserialize)]
 pub struct Record {
+    pub id: String,
     pub content: String,
 }
 
