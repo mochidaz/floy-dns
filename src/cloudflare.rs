@@ -36,7 +36,12 @@ impl Cloudflare {
         subdomain: &String,
         ip: &String,
     ) -> Result<(), ErrorKind> {
-        &self.get_subdomain_dns_record(subdomain, false).await?;
+        match &self.get_subdomain_dns_record(subdomain, false).await {
+            Ok(_) => {
+                return Err(ErrorKind::Error("Subdomain already exists".to_string()));
+            }
+            Err(_) => {}
+        };
 
         let name = format!("{}.{}", subdomain, &self.config.dns_suffix);
 
@@ -118,7 +123,12 @@ impl Cloudflare {
         subdomain: &String,
         ip: &String,
     ) -> Result<(), ErrorKind> {
-        let record = &self.get_subdomain_dns_record(subdomain, false).await?;
+        match &self.get_subdomain_dns_record(subdomain, false).await {
+            Ok(_) => {
+                return Err(ErrorKind::Error("Subdomain already exists".to_string()));
+            }
+            Err(_) => {}
+        };
 
         let name = format!("{}.{}", subdomain, &self.config.dns_suffix);
 
