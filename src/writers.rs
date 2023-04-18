@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::convert;
 use std::convert::AsRef;
 use std::fs;
+use std::io::SeekFrom;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 
 use rocket::request::{FromRequest, Outcome};
 use rocket::serde::json::serde_json;
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::sync::Mutex;
 
 use crate::errors::ErrorKind;
@@ -16,7 +17,7 @@ use crate::models::User;
 
 pub struct Writer<T: AsRef<Path>> {
     text_file: T,
-    file: Mutex<BufWriter<File>>,
+    file: Mutex<File>,
 }
 
 impl<T: AsRef<Path>> Writer<T> {
@@ -30,7 +31,7 @@ impl<T: AsRef<Path>> Writer<T> {
             .await?;
         Ok(Self {
             text_file,
-            file: Mutex::new(BufWriter::new(file)),
+            file: Mutex::new(file),
         })
     }
 
@@ -48,7 +49,9 @@ impl<T: AsRef<Path>> Writer<T> {
     }
 
     pub async fn find(&self, key: &str) -> Result<Option<User>, std::io::Error> {
-        let mut file = BufReader::new(File::open(&self.text_file).await?);
+        let mut file = self.file.lock().await;
+
+        file.seek(SeekFrom::Start(0)).await?;
 
         let mut content = String::new();
 
