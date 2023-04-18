@@ -74,35 +74,3 @@ impl<T: AsRef<Path>> Writer<T> {
         Ok(None)
     }
 }
-
-pub struct WriterConn(pub Writer<String>);
-
-#[rocket::async_trait]
-impl<'r> FromRequest<'r> for WriterConn {
-    type Error = ();
-
-    async fn from_request(
-        request: &'r rocket::Request<'_>,
-    ) -> rocket::request::Outcome<Self, Self::Error> {
-        let text_file = request
-            .guard::<&rocket::State<Writer<String>>>()
-            .await
-            .succeeded()
-            .unwrap()
-            .text_file
-            .clone();
-
-        match Writer::new(text_file.clone()).await {
-            Ok(writer) => Outcome::Success(WriterConn(writer)),
-            Err(_) => Outcome::Failure((rocket::http::Status::InternalServerError, ())),
-        }
-    }
-}
-
-impl Deref for WriterConn {
-    type Target = Writer<String>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}

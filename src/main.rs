@@ -8,6 +8,7 @@ extern crate rocket;
 use rocket::fairing::Fairing;
 use rocket::http::{Method, Status};
 
+use crate::cloudflare::Cloudflare;
 use crate::config::Config;
 use crate::endpoints::build_endpoints;
 use crate::errors::build_catchers;
@@ -26,7 +27,7 @@ mod writers;
 async fn rocket() -> rocket::Rocket<rocket::Build> {
     let config = Config::new();
     let writer = Writer::new(config.database_path.clone()).await.unwrap();
-    let cloudflare = cloudflare::Cloudflare::new(config.clone()).await;
+    let cloudflare = Cloudflare::new(config.clone()).await;
 
     build_endpoints()
         .await
