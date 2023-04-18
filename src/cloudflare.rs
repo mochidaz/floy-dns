@@ -36,6 +36,8 @@ impl Cloudflare {
         subdomain: &String,
         ip: &String,
     ) -> Result<(), ErrorKind> {
+        &self.get_subdomain_dns_record(subdomain, false).await?;
+
         let name = format!("{}.{}", subdomain, &self.config.dns_suffix);
 
         let client = &self.client;
@@ -44,12 +46,26 @@ impl Cloudflare {
             &self.config.cf_zone_id
         );
 
-        let body = DnsRecord::new("A".to_owned(), name, 1, ip.to_owned(), false);
+        let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), false);
 
         let res = client
             .post(&url)
             .bearer_auth(&self.config.cf_api_key)
             .body(body.to_string())
+            .send()
+            .await?;
+
+        if res.status().is_success() {
+        } else {
+            return Err(ErrorKind::Error("Failed to add DNS record".to_string()));
+        }
+
+        let wildcard_body = DnsRecord::new("A".to_owned(), format!("*.{}", &name), 1, ip.to_owned(), false);
+
+        let res = client
+            .post(&url)
+            .bearer_auth(&self.config.cf_api_key)
+            .body(wildcard_body.to_string())
             .send()
             .await?;
 
