@@ -17,7 +17,7 @@ use crate::models::User;
 
 pub struct Writer<T: AsRef<Path>> {
     text_file: T,
-    file: Mutex<File>,
+    file: Mutex<BufWriter<File>>,
 }
 
 impl<T: AsRef<Path>> Writer<T> {
@@ -31,7 +31,7 @@ impl<T: AsRef<Path>> Writer<T> {
             .await?;
         Ok(Self {
             text_file,
-            file: Mutex::new(file),
+            file: Mutex::new(BufWriter::new(file)),
         })
     }
 
