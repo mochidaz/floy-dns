@@ -161,7 +161,7 @@ async fn verify_account(
         .await
         .map_err(|_| Status::InternalServerError)?;
 
-    Ok(Redirect::to("/login"))
+    Ok(Redirect::to("/login?verified=true"))
 }
 
 #[get("/dns")]
