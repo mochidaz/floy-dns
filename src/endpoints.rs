@@ -1,18 +1,22 @@
 use bcrypt::verify;
-use rocket::{Build, Rocket};
+use reqwest::{get, redirect};
 use rocket::http::Status;
-use rocket::serde::json::Json;
+use rocket::response::Redirect;
 use rocket::serde::json::serde_json::json;
+use rocket::serde::json::Json;
+use rocket::{Build, Rocket};
 use rocket_dyn_templates::handlebars::JsonValue;
 
 use crate::cloudflare::CloudflareGuard;
 use crate::config::{Config, ConfigGuard};
-use crate::jwt::{ApiKey, generate_token, read_token};
-use crate::models::{DNS, Login, User, WhoAmI};
-use crate::utils::{find_subdomain_claim, hash_password, send_verification_email, validate_email, validate_username};
-use crate::writers::{Writer, WriterConn};
-use crate::errors::{ErrorKind};
+use crate::errors::ErrorKind;
 use crate::errors::ErrorKind::Error;
+use crate::jwt::{generate_token, read_token, ApiKey};
+use crate::models::{Login, User, WhoAmI, DNS};
+use crate::utils::{
+    find_subdomain_claim, hash_password, send_verification_email, validate_email, validate_username,
+};
+use crate::writers::{Writer, WriterConn};
 
 #[post("/register", data = "<data>")]
 async fn register(
@@ -22,11 +26,19 @@ async fn register(
 ) -> Result<Json<JsonValue>, Status> {
     let user = data.into_inner();
 
-    if let Some(w) = writer.find(&user.subdomain_claim).await.map_err(|_| Status::InternalServerError)? {
+    if let Some(w) = writer
+        .find(&user.subdomain_claim)
+        .await
+        .map_err(|_| Status::InternalServerError)?
+    {
         return Err(Status::Conflict);
     }
 
-    if let Some(s) = writer.find(&user.email).await.map_err(|_| Status::InternalServerError)? {
+    if let Some(s) = writer
+        .find(&user.email)
+        .await
+        .map_err(|_| Status::InternalServerError)?
+    {
         return Err(Status::Conflict);
     }
 
@@ -42,13 +54,15 @@ async fn register(
 
     let message = format!("{}:{}:{}\r", &user.subdomain_claim, &user.email, &hash);
 
-    let verification_token = generate_token(&config, &message).map_err(|_| Status::InternalServerError)?;
+    let verification_token =
+        generate_token(&config, &message).map_err(|_| Status::InternalServerError)?;
 
-    match send_verification_email(&config, &user.email, &verification_token).await.map_err(|_| Status::InternalServerError) {
-        Ok(_) => {
-            {}
-        },
-        Err(_) => return Err(Status::InternalServerError)
+    match send_verification_email(&config, &user.email, &verification_token)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
+        Ok(_) => {}
+        Err(_) => return Err(Status::InternalServerError),
     };
 
     Ok(Json(json!(
@@ -59,15 +73,19 @@ async fn register(
     )))
 }
 
-#[post("/login", data = "<data>")]
-async fn login(
+#[post("/auth", data = "<data>")]
+async fn auth(
     data: Json<Login>,
     writer: WriterConn,
     config: ConfigGuard,
 ) -> Result<Json<JsonValue>, Status> {
     let user = data.into_inner();
 
-    let search = match writer.find(&user.email).await.map_err(|_| Status::InternalServerError)? {
+    let search = match writer
+        .find(&user.email)
+        .await
+        .map_err(|_| Status::InternalServerError)?
+    {
         Some(search) => search,
         None => return Err(Status::NotFound),
     };
@@ -94,10 +112,10 @@ async fn whoami(writer: WriterConn, key: ApiKey) -> Result<Json<JsonValue>, Stat
     let user = match writer.find(&key.0).await {
         Ok(user) => match user {
             Some(user) => user,
-            None => return Err(Status::NotFound)
+            None => return Err(Status::NotFound),
         },
 
-        Err(_) => return Err(Status::InternalServerError)
+        Err(_) => return Err(Status::InternalServerError),
     };
 
     Ok(Json(json!(
@@ -113,41 +131,64 @@ async fn whoami(writer: WriterConn, key: ApiKey) -> Result<Json<JsonValue>, Stat
 }
 
 #[get("/verify?<token>")]
-async fn verify_account(config: ConfigGuard, token: Option<String>, writer: WriterConn) -> Result<Json<JsonValue>, Status> {
+async fn verify_account(
+    config: ConfigGuard,
+    token: Option<String>,
+    writer: WriterConn,
+) -> Result<Redirect, Status> {
     let token = match token {
         Some(token) => token,
-        None => return Err(Status::BadRequest)
+        None => return Err(Status::BadRequest),
     };
 
     let read = match read_token(&config, &token).map_err(|_| Status::InternalServerError) {
         Ok(read) => read,
-        Err(_) => return Err(Status::Unauthorized)
+        Err(_) => return Err(Status::Unauthorized),
     };
 
-    writer.write(&read).await.map_err(|_| Status::InternalServerError)?;
+    let get_user = read.split(":").collect::<Vec<&str>>()[1];
 
-    Ok(Json(json!(
-        {
-            "status": 200,
-            "message": "Account verified. Please log in to continue",
-            "verified": true,
-        }
-    )))
+    if let Some(user) = writer
+        .find(get_user)
+        .await
+        .map_err(|_| Status::InternalServerError)?
+    {
+        return Err(Status::Conflict);
+    }
+
+    writer
+        .write(&read)
+        .await
+        .map_err(|_| Status::InternalServerError)?;
+
+    Ok(Redirect::to("/login"))
 }
 
 #[get("/dns")]
-async fn dns(config: ConfigGuard, cloudflare: CloudflareGuard, writer: WriterConn, key: ApiKey) -> Result<Json<JsonValue>, Status> {
-    let user = match find_subdomain_claim(&writer, &key.0).await.map_err(|_| Status::InternalServerError) {
+async fn dns(
+    config: ConfigGuard,
+    cloudflare: CloudflareGuard,
+    writer: WriterConn,
+    key: ApiKey,
+) -> Result<Json<JsonValue>, Status> {
+    let user = match find_subdomain_claim(&writer, &key.0)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
         Ok(subdomain_claim) => match subdomain_claim {
             Some(subdomain_claim) => subdomain_claim,
-            None => return Err(Status::NotFound)
+            None => return Err(Status::NotFound),
         },
-        Err(_) => return Err(Status::InternalServerError)
+        Err(_) => return Err(Status::InternalServerError),
     };
 
-    let dns_entry = match cloudflare.get_subdomain_dns_record(&user.subdomain_claim, false).await.map_err(|_| Status::InternalServerError) {
+    let dns_entry = match cloudflare
+        .get_subdomain_dns_record(&user.subdomain_claim, false)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
         Ok(dns_entry) => dns_entry,
-        Err(_) => return Err(Status::NotFound)
+        Err(_) => return Err(Status::NotFound),
     };
 
     Ok(Json(json!(
@@ -160,18 +201,31 @@ async fn dns(config: ConfigGuard, cloudflare: CloudflareGuard, writer: WriterCon
 }
 
 #[post("/dns", data = "<dns>")]
-async fn dns_add(config: ConfigGuard, cloudflare: CloudflareGuard, writer: WriterConn, key: ApiKey, dns: Json<DNS>) -> Result<Json<JsonValue>, Status> {
-    let user = match find_subdomain_claim(&writer, &key.0).await.map_err(|_| Status::InternalServerError) {
+async fn dns_add(
+    config: ConfigGuard,
+    cloudflare: CloudflareGuard,
+    writer: WriterConn,
+    key: ApiKey,
+    dns: Json<DNS>,
+) -> Result<Json<JsonValue>, Status> {
+    let user = match find_subdomain_claim(&writer, &key.0)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
         Ok(subdomain_claim) => match subdomain_claim {
             Some(subdomain_claim) => subdomain_claim,
-            None => return Err(Status::NotFound)
+            None => return Err(Status::NotFound),
         },
-        Err(_) => return Err(Status::InternalServerError)
+        Err(_) => return Err(Status::InternalServerError),
     };
 
-    match cloudflare.add_subdomain_dns_record(&user.subdomain_claim, &dns.ip).await.map_err(|_| Status::InternalServerError) {
-        Ok(_) => {},
-        Err(_) => return Err(Status::Conflict)
+    match cloudflare
+        .add_subdomain_dns_record(&user.subdomain_claim, &dns.ip)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
+        Ok(_) => {}
+        Err(_) => return Err(Status::Conflict),
     };
 
     Ok(Json(json!(
@@ -184,18 +238,31 @@ async fn dns_add(config: ConfigGuard, cloudflare: CloudflareGuard, writer: Write
 }
 
 #[put("/dns", data = "<dns>")]
-async fn dns_update(config: ConfigGuard, cloudflare: CloudflareGuard, writer: WriterConn, key: ApiKey, dns: Json<DNS>) -> Result<Json<JsonValue>, Status> {
-    let user = match find_subdomain_claim(&writer, &key.0).await.map_err(|_| Status::InternalServerError) {
+async fn dns_update(
+    config: ConfigGuard,
+    cloudflare: CloudflareGuard,
+    writer: WriterConn,
+    key: ApiKey,
+    dns: Json<DNS>,
+) -> Result<Json<JsonValue>, Status> {
+    let user = match find_subdomain_claim(&writer, &key.0)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
         Ok(subdomain_claim) => match subdomain_claim {
             Some(subdomain_claim) => subdomain_claim,
-            None => return Err(Status::NotFound)
+            None => return Err(Status::NotFound),
         },
-        Err(_) => return Err(Status::InternalServerError)
+        Err(_) => return Err(Status::InternalServerError),
     };
 
-    match cloudflare.update_subdomain_dns_record(&user.subdomain_claim, &dns.ip).await.map_err(|_| Status::InternalServerError) {
-        Ok(_) => {},
-        Err(_) => return Err(Status::Conflict)
+    match cloudflare
+        .update_subdomain_dns_record(&user.subdomain_claim, &dns.ip)
+        .await
+        .map_err(|_| Status::InternalServerError)
+    {
+        Ok(_) => {}
+        Err(_) => return Err(Status::Conflict),
     };
 
     Ok(Json(json!(
@@ -208,17 +275,16 @@ async fn dns_update(config: ConfigGuard, cloudflare: CloudflareGuard, writer: Wr
 }
 
 pub async fn build_endpoints() -> Rocket<Build> {
-    rocket::build()
-        .mount(
-            "/api",
-            routes![
-                register,
-                login,
-                whoami,
-                dns,
-                dns_add,
-                dns_update,
-                verify_account,
-            ],
-        )
+    rocket::build().mount(
+        "/api",
+        routes![
+            register,
+            auth,
+            whoami,
+            dns,
+            dns_add,
+            dns_update,
+            verify_account,
+        ],
+    )
 }

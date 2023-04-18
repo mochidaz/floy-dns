@@ -1,10 +1,10 @@
 use std::env;
 
 use chrono::{Duration, Local};
-use jsonwebtoken::{Algorithm, decode, DecodingKey, encode, EncodingKey, Header, Validation};
-use rocket::{Data, Request, request};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rocket::http::Status;
 use rocket::request::FromRequest;
+use rocket::{request, Data, Request};
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
@@ -29,11 +29,7 @@ pub fn generate_token(config: &Config, key: &String) -> Result<String, ErrorKind
 
     let mut sub = key.clone();
 
-    let claims = Claims {
-        sub,
-        iat: now,
-        exp,
-    };
+    let claims = Claims { sub, iat: now, exp };
 
     let header = Header::new(Algorithm::HS512);
     Ok(encode(
@@ -68,10 +64,7 @@ impl<'r> FromRequest<'r> for ApiKey {
     type Error = ErrorKind;
 
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<ApiKey, ErrorKind> {
-        let keys = match request
-            .headers()
-            .get_one("Authorization")
-        {
+        let keys = match request.headers().get_one("Authorization") {
             Some(k) => k.split("Bearer").map(|i| i.trim()).collect::<String>(),
             None => {
                 return request::Outcome::Failure((Status::BadRequest, ErrorKind::InvalidValue))

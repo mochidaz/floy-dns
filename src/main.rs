@@ -13,14 +13,14 @@ use crate::endpoints::build_endpoints;
 use crate::errors::build_catchers;
 use crate::writers::Writer;
 
-mod writers;
-mod errors;
-mod utils;
-mod endpoints;
-mod models;
-mod jwt;
 mod cloudflare;
 mod config;
+mod endpoints;
+mod errors;
+mod jwt;
+mod models;
+mod utils;
+mod writers;
 
 #[launch]
 async fn rocket() -> rocket::Rocket<rocket::Build> {
@@ -28,7 +28,8 @@ async fn rocket() -> rocket::Rocket<rocket::Build> {
     let writer = Writer::new(config.database_path.clone()).await.unwrap();
     let cloudflare = cloudflare::Cloudflare::new(config.clone()).await;
 
-    build_endpoints().await
+    build_endpoints()
+        .await
         .manage(writer)
         .manage(config)
         .manage(cloudflare)

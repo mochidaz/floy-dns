@@ -2,12 +2,12 @@ use std::fmt;
 
 use lettre;
 use reqwest;
-use rocket::{Request, Response};
 use rocket::futures::io::Cursor;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
-use rocket::serde::{Deserialize, Serialize};
 use rocket::serde::json::Json;
+use rocket::serde::{Deserialize, Serialize};
+use rocket::{Request, Response};
 use rocket_dyn_templates::handlebars::JsonValue;
 
 #[derive(Debug)]
@@ -99,7 +99,8 @@ fn bad_request() -> Json<Catcher> {
     Catcher {
         status: 400,
         message: "Bad request".to_string(),
-    }.into()
+    }
+    .into()
 }
 
 #[catch(401)]
@@ -107,7 +108,8 @@ fn unauthorized() -> Json<Catcher> {
     Catcher {
         status: 401,
         message: "Unauthorized".to_string(),
-    }.into()
+    }
+    .into()
 }
 
 #[catch(404)]
@@ -115,7 +117,8 @@ fn not_found() -> Json<Catcher> {
     Catcher {
         status: 404,
         message: "Not found".to_string(),
-    }.into()
+    }
+    .into()
 }
 
 #[catch(409)]
@@ -123,7 +126,8 @@ fn conflict() -> Json<Catcher> {
     Catcher {
         status: 409,
         message: "Conflict".to_string(),
-    }.into()
+    }
+    .into()
 }
 
 #[catch(500)]
@@ -131,12 +135,21 @@ fn internal_server_error() -> Json<Catcher> {
     Catcher {
         status: 500,
         message: "Internal server error".to_string(),
-    }.into()
+    }
+    .into()
 }
 
 pub async fn build_catchers() -> rocket::fairing::AdHoc {
     rocket::fairing::AdHoc::on_ignite("Catcher", |rocket| async move {
-        rocket
-            .register("/", catchers![bad_request, unauthorized, not_found, conflict, internal_server_error])
+        rocket.register(
+            "/",
+            catchers![
+                bad_request,
+                unauthorized,
+                not_found,
+                conflict,
+                internal_server_error
+            ],
+        )
     })
 }

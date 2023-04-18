@@ -1,9 +1,9 @@
 use std::env;
 use std::ops::Deref;
 
-use rocket::{Request, State};
 use rocket::outcome::Outcome;
 use rocket::request::FromRequest;
+use rocket::{Request, State};
 
 #[derive(Clone)]
 pub struct Config {
@@ -65,7 +65,9 @@ impl<'a> From<&'a rocket::State<Config>> for Config {
 impl<'r> FromRequest<'r> for ConfigGuard {
     type Error = ();
 
-    async fn from_request(request: &'r rocket::Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
         let config = request
             .guard::<&rocket::State<Config>>()
             .await

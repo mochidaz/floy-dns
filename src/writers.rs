@@ -55,10 +55,7 @@ impl<T: AsRef<Path>> Writer<T> {
         file.read_to_string(&mut content).await?;
 
         for i in content.split("\r").collect::<Vec<&str>>() {
-            let map: Vec<String> = i.trim()
-                .split(":")
-                .map(|s| s.to_string())
-                .collect();
+            let map: Vec<String> = i.trim().split(":").map(|s| s.to_string()).collect();
             if map[0].is_empty() {
                 continue;
             }
@@ -67,7 +64,7 @@ impl<T: AsRef<Path>> Writer<T> {
                     subdomain_claim: map[0].clone(),
                     email: map[1].clone(),
                     password: map[2].clone(),
-                }))
+                }));
             }
         }
 
@@ -78,10 +75,12 @@ impl<T: AsRef<Path>> Writer<T> {
 pub struct WriterConn(pub Writer<String>);
 
 #[rocket::async_trait]
-impl <'r> FromRequest<'r> for WriterConn {
+impl<'r> FromRequest<'r> for WriterConn {
     type Error = ();
 
-    async fn from_request(request: &'r rocket::Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+    async fn from_request(
+        request: &'r rocket::Request<'_>,
+    ) -> rocket::request::Outcome<Self, Self::Error> {
         let text_file = request
             .guard::<&rocket::State<Writer<String>>>()
             .await
@@ -92,7 +91,7 @@ impl <'r> FromRequest<'r> for WriterConn {
 
         match Writer::new(text_file.clone()).await {
             Ok(writer) => Outcome::Success(WriterConn(writer)),
-            Err(_) => Outcome::Failure((rocket::http::Status::InternalServerError, ()))
+            Err(_) => Outcome::Failure((rocket::http::Status::InternalServerError, ())),
         }
     }
 }

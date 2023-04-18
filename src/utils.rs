@@ -1,7 +1,7 @@
-use bcrypt::{DEFAULT_COST, hash, verify};
-use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
+use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 
 use crate::config::Config;
 use crate::errors::ErrorKind;
@@ -20,32 +20,49 @@ pub fn hash_password(s: &String) -> String {
     hash(s, DEFAULT_COST).unwrap()
 }
 
-pub async fn send_verification_email(config: &Config, to: &String, token: &String) -> Result<(), ErrorKind> {
+pub async fn send_verification_email(
+    config: &Config,
+    to: &String,
+    token: &String,
+) -> Result<(), ErrorKind> {
     let verification_url = format!("{}/api/verify?token={}", config.base_url, token);
     let email = lettre::Message::builder()
-        .from(format!("{} <{}>", &config.smtp_from_name, &config.smtp_from_email).parse().unwrap())
+        .from(
+            format!("{} <{}>", &config.smtp_from_name, &config.smtp_from_email)
+                .parse()
+                .unwrap(),
+        )
         .to(to.parse().unwrap())
         .subject("Verifikasi FloyDNS")
-        .body(format!("Klik link berikut untuk memverifikasikan akun FloyDNS-mu:    {}", verification_url))?;
+        .body(format!(
+            "Klik link berikut untuk memverifikasikan akun FloyDNS-mu:    {}",
+            verification_url
+        ))?;
 
-    let creds = Credentials::new(config.smtp_username.to_owned(), config.smtp_password.to_owned());
+    let creds = Credentials::new(
+        config.smtp_username.to_owned(),
+        config.smtp_password.to_owned(),
+    );
 
     let mailer: AsyncSmtpTransport<Tokio1Executor> =
-    AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(config.smtp_host.as_str())
-        .unwrap()
-        .credentials(creds)
-        .build();
+        AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(config.smtp_host.as_str())
+            .unwrap()
+            .credentials(creds)
+            .build();
 
     let m = mailer.send(email).await;
 
     Ok(())
 }
 
-pub async fn find_subdomain_claim(writer: &Writer<String>, subdomain_claim: &String) -> Result<Option<User>, ErrorKind> {
-    writer.find(subdomain_claim).await?
-        .map(|s| {
-            Some(s)
-        })
+pub async fn find_subdomain_claim(
+    writer: &Writer<String>,
+    subdomain_claim: &String,
+) -> Result<Option<User>, ErrorKind> {
+    writer
+        .find(subdomain_claim)
+        .await?
+        .map(|s| Some(s))
         .ok_or(ErrorKind::NotFound)
 }
 
