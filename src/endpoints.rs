@@ -275,10 +275,16 @@ async fn dns_update(
     )))
 }
 
+#[options("/<_..>")]
+fn handle_cors() -> Status {
+    Status::Ok
+}
+
 pub async fn build_endpoints() -> Rocket<Build> {
     rocket::build().mount(
         "/api",
         routes![
+            handle_cors,
             register,
             auth,
             whoami,

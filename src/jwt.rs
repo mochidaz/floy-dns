@@ -67,7 +67,7 @@ impl<'r> FromRequest<'r> for ApiKey {
         let keys = match request.headers().get_one("Authorization") {
             Some(k) => k.split("Bearer").map(|i| i.trim()).collect::<String>(),
             None => {
-                return request::Outcome::Failure((Status::BadRequest, ErrorKind::InvalidValue))
+                return request::Outcome::Error((Status::BadRequest, ErrorKind::InvalidValue))
             }
         };
 
@@ -75,7 +75,7 @@ impl<'r> FromRequest<'r> for ApiKey {
 
         match read_token(&config, keys.as_str()) {
             Ok(claim) => request::Outcome::Success(ApiKey(claim)),
-            Err(e) => request::Outcome::Failure((Status::Unauthorized, e)),
+            Err(e) => request::Outcome::Error((Status::Unauthorized, e)),
         }
     }
 }
