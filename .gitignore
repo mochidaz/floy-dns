@@ -2,3 +2,5 @@
 test.txt
 .idea
 dev.sh
+.env
+database.db

@@ -1,7 +1,12 @@
+use std::fs;
+use std::os::unix::fs::symlink;
+use std::path::Path;
+use std::process::Command;
 use bcrypt::verify;
 use reqwest::{get, redirect};
 use rocket::{Build, Rocket, State};
 use rocket::http::Status;
+use rocket::log::private::{log, logger, Level, Log};
 use rocket::response::Redirect;
 use rocket::serde::json::Json;
 use rocket::serde::json::serde_json::json;
@@ -206,34 +211,66 @@ async fn dns_add(
     config: &State<Config>,
     cloudflare: &State<Cloudflare>,
     writer: &State<Writer<String>>,
-    key: ApiKey,
     dns: Json<DNS>,
 ) -> Result<Json<JsonValue>, Status> {
-    let user = match find_subdomain_claim(&writer, &key.0)
+    match cloudflare
+        .add_subdomain_dns_record(&dns.subdomain, &dns.ip)
         .await
-        .map_err(|_| Status::InternalServerError)
-    {
-        Ok(subdomain_claim) => match subdomain_claim {
-            Some(subdomain_claim) => subdomain_claim,
-            None => return Err(Status::NotFound),
+        .map_err(|e| {
+            Status::InternalServerError
+        }) {
+        Ok(_) => {}
+        Err(e) => {
+            return Err(Status::NotFound);
         },
-        Err(_) => return Err(Status::InternalServerError),
     };
 
-    match cloudflare
-        .add_subdomain_dns_record(&user.subdomain_claim, &dns.ip)
-        .await
-        .map_err(|_| Status::InternalServerError)
-    {
-        Ok(_) => {}
-        Err(_) => return Err(Status::Conflict),
-    };
+    let sites_available_dir = "/etc/nginx/sites-available/";
+    let sites_enabled_dir = "/etc/nginx/sites-enabled/";
+    let file_name = format!("{}", dns.subdomain);
+    let available_path = Path::new(sites_available_dir).join(&file_name);
+    let enabled_path = Path::new(sites_enabled_dir).join(&file_name);
+
+    let nginx_template = format!(
+        r#"server {{
+    listen 80;
+    server_name {subdomain}.cciunitel.com;
+
+    root {web_path};
+    index index.html;
+
+    location / {{
+        try_files $uri $uri/ =404;
+    }}
+}}"#,
+        subdomain = dns.subdomain,
+        web_path = dns.web_path
+    );
+
+    if let Err(e) = fs::write(&available_path, nginx_template) {
+        return Err(Status::InternalServerError);
+    }
+
+    if !enabled_path.exists() {
+        if let Err(e) = symlink(&available_path, &enabled_path) {
+            return Err(Status::InternalServerError);
+        }
+    }
+
+    if let Err(e) = Command::new("nginx")
+        .arg("-s")
+        .arg("reload")
+        .output() {
+        return Err(Status::InternalServerError);
+    }
 
     Ok(Json(json!(
         {
             "status": 200,
-            "message": "DNS record added",
+            "message": "DNS record added and nginx config created",
             "ip": &dns.ip,
+            "subdomain": &dns.subdomain,
+            "web_path": &dns.web_path
         }
     )))
 }
@@ -243,10 +280,9 @@ async fn dns_update(
     config: &State<Config>,
     cloudflare: &State<Cloudflare>,
     writer: &State<Writer<String>>,
-    key: ApiKey,
     dns: Json<DNS>,
 ) -> Result<Json<JsonValue>, Status> {
-    let user = match find_subdomain_claim(&writer, &key.0)
+    let user = match find_subdomain_claim(&writer, &dns.subdomain)
         .await
         .map_err(|_| Status::InternalServerError)
     {
