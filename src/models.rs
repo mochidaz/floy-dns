@@ -25,6 +25,8 @@ pub struct WhoAmI {
 #[derive(Serialize, Deserialize)]
 pub struct DNS {
     pub ip: String,
+    pub subdomain: String,
+    pub web_path: String,
 }
 
 #[derive(Serialize, Deserialize)]

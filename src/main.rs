@@ -25,6 +25,8 @@ mod writers;
 
 #[launch]
 async fn rocket() -> rocket::Rocket<rocket::Build> {
+    dotenv::dotenv().ok();
+
     let config = Config::new();
     let writer = Writer::new(config.database_path.clone()).await.unwrap();
     let cloudflare = Cloudflare::new(config.clone()).await;

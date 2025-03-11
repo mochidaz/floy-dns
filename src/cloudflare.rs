@@ -22,9 +22,10 @@ impl Cloudflare {
     pub async fn new(config: Config) -> Self {
         let mut headers = reqwest::header::HeaderMap::new();
 
-        headers.insert("X-Auth-Email", config.cf_email.parse().unwrap());
-        headers.insert("X-Auth-Key", config.cf_api_key.parse().unwrap());
+        // headers.insert("X-Auth-Email", config.cf_email.parse().unwrap());
+        // headers.insert("X-Auth-Key", config.cf_api_key.parse().unwrap());
         headers.insert("Content-Type", "application/json".parse().unwrap());
+        headers.insert("Authorization", format!("Bearer {}", config.cf_api_key).parse().unwrap());
 
         let client = Client::builder().default_headers(headers).build().unwrap();
 
