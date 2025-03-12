@@ -52,7 +52,7 @@ impl Cloudflare {
             &self.config.cf_zone_id
         );
 
-        let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), false);
+        let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), true);
 
         let res = client
             .post(&url)
@@ -71,7 +71,7 @@ impl Cloudflare {
             format!("*.{}", &name),
             1,
             ip.to_owned(),
-            false,
+            true,
         );
 
         let res = client
@@ -148,7 +148,7 @@ impl Cloudflare {
             &self.config.cf_zone_id
         );
 
-        let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), false);
+        let body = DnsRecord::new("A".to_owned(), name.clone(), 1, ip.to_owned(), true);
 
         let res = client
             .put(format!("{}/{}", &url, record.1))
@@ -169,7 +169,7 @@ impl Cloudflare {
             format!("*.{}", &name),
             1,
             ip.to_owned(),
-            false,
+            true,
         );
 
         let wildcard_res = client
