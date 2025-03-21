@@ -198,7 +198,8 @@ pub async fn create_domain_endpoint(
     .map_err(|_| Status::InternalServerError)?;
     Ok(Json(json!({
         "status": 200,
-        "message": "Domain created successfully"
+        "message": "Domain created successfully",
+        "domain": format!("{}.{}", req.domain, cfg.dns_suffix)
     })))
 }
 
