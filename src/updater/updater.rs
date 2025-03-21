@@ -37,7 +37,7 @@ pub fn create_domain(
     let config_template = format!(
         r#"server {{
     listen 80;
-    server_name {};
+    server_name {}.{};
     root {}/{}/{}/{};
     index index.html;
 
@@ -46,7 +46,7 @@ pub fn create_domain(
     }}
 }}
 "#,
-        domain, cfg.prefix, user_id, business_id, main_site
+        domain, cfg.dns_suffix, cfg.prefix, user_id, business_id, main_site
     );
 
     fs::write(&available_path, config_template)?;
