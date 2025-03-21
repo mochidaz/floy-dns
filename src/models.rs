@@ -1,6 +1,5 @@
 use std::fmt;
 
-use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -48,6 +47,26 @@ pub struct DnsRecord {
     pub ttl: u32,
     pub content: String,
     pub proxied: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct DomainRequest {
+    pub user_id: String,
+    pub business_id: String,
+    pub domain: String,
+    pub site_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct SlugRequest {
+    pub user_id: String,
+    pub business_id: String,
+    pub slug: String,
+    pub site_id: String,
+    pub rewrite_target: Option<String>,
+    pub domain: String,
 }
 
 impl DnsRecord {

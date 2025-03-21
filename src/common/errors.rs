@@ -2,13 +2,9 @@ use std::fmt;
 
 use lettre;
 use reqwest;
-use rocket::futures::io::Cursor;
-use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::serde::json::Json;
 use rocket::serde::{Deserialize, Serialize};
-use rocket::{Request, Response};
-use rocket_dyn_templates::handlebars::JsonValue;
 
 #[derive(Debug)]
 pub enum JWTCError {

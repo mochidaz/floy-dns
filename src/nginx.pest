@@ -1,0 +1,15 @@
+// nginx.pest
+
+WHITESPACE = _{ " " | "\t" | "\r\n" }
+
+server      = { SOI ~ "server" ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ (directive ~ WHITESPACE*)* ~ "}" ~ WHITESPACE* ~ EOI }
+directive   = { listen | server_name | root | index | location }
+listen      = { "listen" ~ WHITESPACE+ ~ number ~ ";" }
+number      = @{ ASCII_DIGIT+ }
+server_name = { "server_name" ~ WHITESPACE+ ~ hostname ~ ";" }
+hostname    = @{ (ASCII_ALPHANUMERIC | "." | "-" )+ }
+root        = { "root" ~ WHITESPACE+ ~ path ~ ";" }
+path        = @{ (ASCII_ALPHANUMERIC | "/" | "." | "_" | "-" )+ }
+index       = { "index" ~ WHITESPACE+ ~ identifier ~ ";" }
+identifier  = @{ (ASCII_ALPHANUMERIC | "." | "-" | "_" )+ }
+location    = { "location" ~ WHITESPACE+ ~ path ~ WHITESPACE* ~ "{" ~ WHITESPACE* ~ (directive ~ WHITESPACE*)* ~ "}" }

@@ -1,9 +1,4 @@
 use std::env;
-use std::ops::Deref;
-
-use rocket::outcome::Outcome;
-use rocket::request::FromRequest;
-use rocket::{Request, State};
 
 #[derive(Clone)]
 pub struct Config {
@@ -14,11 +9,13 @@ pub struct Config {
     pub smtp_from_email: String,
     pub smtp_from_name: String,
     pub base_url: String,
+    pub prefix: String,
     pub cf_email: String,
     pub cf_api_key: String,
     pub cf_zone_id: String,
     pub dns_suffix: String,
     pub database_path: String,
+    pub ip: String,
 }
 
 impl Config {
@@ -36,6 +33,8 @@ impl Config {
             cf_zone_id: env::var("CF_ZONE_ID").unwrap(),
             dns_suffix: env::var("DNS_SUFFIX").unwrap(),
             database_path: env::var("DATABASE_PATH").unwrap(),
+            prefix: env::var("PREFIX").unwrap(),
+            ip: env::var("IP").unwrap(),
         }
     }
 }

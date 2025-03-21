@@ -5,23 +5,19 @@
 #[macro_use]
 extern crate rocket;
 
-use rocket::fairing::Fairing;
-use rocket::http::{Method, Status};
-
-use crate::cloudflare::Cloudflare;
+use crate::cloudflare::cloudflare::Cloudflare;
+use crate::common::errors::build_catchers;
+use crate::common::writers::Writer;
 use crate::config::Config;
 use crate::endpoints::build_endpoints;
-use crate::errors::build_catchers;
-use crate::writers::Writer;
 
 mod cloudflare;
+mod common;
 mod config;
 mod endpoints;
-mod errors;
-mod jwt;
 mod models;
-mod utils;
-mod writers;
+mod parser;
+mod updater;
 
 #[launch]
 async fn rocket() -> rocket::Rocket<rocket::Build> {

@@ -1,18 +1,12 @@
-use std::collections::HashMap;
-use std::convert;
 use std::convert::AsRef;
-use std::fs;
 use std::io::SeekFrom;
-use std::ops::Deref;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use rocket::request::{FromRequest, Outcome};
-use rocket::serde::json::serde_json;
+use rocket::request::FromRequest;
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufWriter};
 use tokio::sync::Mutex;
 
-use crate::errors::ErrorKind;
 use crate::models::User;
 
 pub struct Writer<T: AsRef<Path>> {
