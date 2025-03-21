@@ -1,12 +1,11 @@
 use bcrypt::{hash, verify, DEFAULT_COST};
-use lettre::message::Mailbox;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Tokio1Executor};
 
+use crate::common::errors::ErrorKind;
+use crate::common::writers::Writer;
 use crate::config::Config;
-use crate::errors::ErrorKind;
 use crate::models::User;
-use crate::writers::Writer;
 
 pub fn validate_username(s: &String) -> bool {
     s.chars().all(|c| c.is_alphanumeric())
@@ -46,7 +45,7 @@ pub async fn send_verification_email(
 
     let mailer: AsyncSmtpTransport<Tokio1Executor> =
         AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(config.smtp_host.as_str())
-            .unwrap()
+            ?
             .credentials(creds)
             .build();
 

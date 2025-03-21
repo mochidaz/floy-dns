@@ -1,14 +1,12 @@
-use std::env;
-
 use chrono::{Duration, Local};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rocket::http::Status;
 use rocket::request::FromRequest;
-use rocket::{request, Data, Request};
+use rocket::{request, Request};
 use serde::{Deserialize, Serialize};
 
+use crate::common::errors::{ErrorKind, JWTCError};
 use crate::config::Config;
-use crate::errors::{ErrorKind, JWTCError};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -66,9 +64,7 @@ impl<'r> FromRequest<'r> for ApiKey {
     async fn from_request(request: &'r Request<'_>) -> request::Outcome<ApiKey, ErrorKind> {
         let keys = match request.headers().get_one("Authorization") {
             Some(k) => k.split("Bearer").map(|i| i.trim()).collect::<String>(),
-            None => {
-                return request::Outcome::Error((Status::BadRequest, ErrorKind::InvalidValue))
-            }
+            None => return request::Outcome::Error((Status::BadRequest, ErrorKind::InvalidValue)),
         };
 
         let config = request.guard::<&rocket::State<Config>>().await.unwrap();
