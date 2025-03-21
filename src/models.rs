@@ -55,7 +55,6 @@ pub struct DomainRequest {
     pub user_id: String,
     pub business_id: String,
     pub domain: String,
-    pub site_id: String,
 }
 
 #[derive(Deserialize)]
