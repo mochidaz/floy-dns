@@ -23,7 +23,6 @@ pub fn create_domain(
     user_id: &str,
     business_id: &str,
     domain: &str,
-    main_site: &str,
     cfg: &Config,
 ) -> Result<()> {
     let (available_path, enabled_path) = get_domain_paths(user_id, business_id);
@@ -38,7 +37,7 @@ pub fn create_domain(
         r#"server {{
     listen 80;
     server_name {}.{};
-    root {}/{}/{}/{};
+    root {}/{}/{};
     index index.html;
 
     location / {{
@@ -46,7 +45,7 @@ pub fn create_domain(
     }}
 }}
 "#,
-        domain, cfg.dns_suffix, cfg.prefix, user_id, business_id, main_site
+        domain, cfg.dns_suffix, cfg.prefix, user_id, business_id
     );
 
     fs::write(&available_path, config_template)?;

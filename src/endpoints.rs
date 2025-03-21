@@ -193,7 +193,6 @@ pub async fn create_domain_endpoint(
         &req.user_id,
         &req.business_id,
         &req.domain,
-        &req.site_id,
         &cfg,
     )
     .map_err(|_| Status::InternalServerError)?;
