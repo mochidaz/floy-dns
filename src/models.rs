@@ -55,6 +55,7 @@ pub struct SubdomainRequest {
     pub user_id: String,
     pub business_id: String,
     pub subdomain: String,
+    pub page_id: String,
 }
 
 #[derive(Deserialize)]
@@ -63,6 +64,7 @@ pub struct SlugRequest {
     pub user_id: String,
     pub business_id: String,
     pub slug: String,
+    pub previous_slug: String,
     pub site_id: String,
     pub rewrite_target: Option<String>,
     pub subdomain: String,
