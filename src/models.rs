@@ -51,10 +51,10 @@ pub struct DnsRecord {
 
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
-pub struct DomainRequest {
+pub struct SubdomainRequest {
     pub user_id: String,
     pub business_id: String,
-    pub domain: String,
+    pub subdomain: String,
 }
 
 #[derive(Deserialize)]
@@ -65,7 +65,7 @@ pub struct SlugRequest {
     pub slug: String,
     pub site_id: String,
     pub rewrite_target: Option<String>,
-    pub domain: String,
+    pub subdomain: String,
 }
 
 impl DnsRecord {

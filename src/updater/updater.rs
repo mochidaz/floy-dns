@@ -23,6 +23,7 @@ pub fn create_domain(
     user_id: &str,
     business_id: &str,
     domain: &str,
+    page_id: &str,
     cfg: &Config,
 ) -> Result<()> {
     let (available_path, enabled_path) = get_domain_paths(user_id, business_id);
@@ -41,11 +42,11 @@ pub fn create_domain(
     index index.html;
 
     location / {{
-        try_files $uri $uri/ =404;
+        rewrite ^/$ /{page_id} break;
     }}
 }}
 "#,
-        domain, cfg.dns_suffix, cfg.prefix, user_id, business_id
+        domain, cfg.dns_suffix, cfg.prefix, user_id, business_id,
     );
 
     fs::write(&available_path, config_template)?;
@@ -89,8 +90,11 @@ pub fn add_slug_page(
     rewrite_target: Option<&str>,
 ) -> Result<()> {
     let (available_path, _) = get_domain_paths(user_id, business_id);
+
     let mut content = fs::read_to_string(&available_path)?;
+
     let target = rewrite_target.unwrap_or(&format!("/{}/index.html", new_site));
+
     let location_block = format!(
         r#"
     location /{slug} {{
@@ -100,8 +104,8 @@ pub fn add_slug_page(
         slug = slug,
     );
 
-    insert_location_block(&mut content, &location_block)?;
     fs::write(&available_path, content)?;
+
     Ok(())
 }
 
@@ -109,12 +113,13 @@ pub fn update_slug_page(
     user_id: &str,
     business_id: &str,
     slug: &str,
+    previous_slug: &str,
     new_site: &str,
     rewrite_target: Option<&str>,
 ) -> Result<()> {
     let (available_path, _) = get_domain_paths(user_id, business_id);
     let mut content = fs::read_to_string(&available_path)?;
-    let start_marker = format!("location /{} {{", slug);
+    let start_marker = format!("location /{} {{", previous_slug);
 
     if let Some(start) = content.find(&start_marker) {
         if let Some(end) = content[start..].find('}') {

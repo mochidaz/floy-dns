@@ -21,7 +21,7 @@ use crate::common::utils::{
 };
 use crate::common::writers::Writer;
 use crate::config::Config;
-use crate::models::{DomainRequest, Login, SlugRequest, User, WhoAmI, DNS};
+use crate::models::{SubdomainRequest, Login, SlugRequest, User, WhoAmI, DNS};
 use crate::updater::updater;
 
 #[post("/register", data = "<data>")]
@@ -172,12 +172,12 @@ async fn verify_account(
 
 #[post("/domain", data = "<req>")]
 pub async fn create_domain_endpoint(
-    req: Json<DomainRequest>,
+    req: Json<SubdomainRequest>,
     cfg: &State<Config>,
     cloudflare: &State<Cloudflare>,
 ) -> Result<Json<JsonValue>, Status> {
     if (cloudflare
-        .check_exists(&req.domain)
+        .check_exists(&req.subdomain)
         .await
         .map_err(|_| Status::InternalServerError)?)
     {
@@ -185,39 +185,39 @@ pub async fn create_domain_endpoint(
     }
 
     cloudflare
-        .add_subdomain_dns_record(&req.domain, &cfg.ip)
+        .add_subdomain_dns_record(&req.subdomain, &cfg.ip)
         .await
         .map_err(|_| Status::InternalServerError)?;
 
     updater::create_domain(
         &req.user_id,
         &req.business_id,
-        &req.domain,
+        &req.subdomain,
         &cfg,
     )
     .map_err(|_| Status::InternalServerError)?;
     Ok(Json(json!({
         "status": 200,
         "message": "Domain created successfully",
-        "domain": format!("{}.{}", req.domain, cfg.dns_suffix)
+        "domain": format!("{}.{}", req.subdomain, cfg.dns_suffix)
     })))
 }
 
 #[delete("/domain", data = "<req>")]
 pub async fn delete_domain_endpoint(
-    req: Json<DomainRequest>,
+    req: Json<SubdomainRequest>,
     cfg: &State<Config>,
     cloudflare: &State<Cloudflare>,
 ) -> Result<Json<JsonValue>, Status> {
     if !(cloudflare
-        .check_exists(&req.domain)
+        .check_exists(&req.subdomain)
         .await
         .map_err(|_| Status::InternalServerError)?)
     {
         return Err(Status::NotFound);
     }
 
-    match cloudflare.delete_subdomain_dns_record(&req.domain).await {
+    match cloudflare.delete_subdomain_dns_record(&req.subdomain).await {
         Ok(_) => {}
         Err(_) => return Err(Status::InternalServerError),
     }
