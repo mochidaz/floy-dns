@@ -50,10 +50,6 @@ pub fn create_domain(
 
     fs::write(&available_path, config_template)?;
 
-    if let Some(dir) = enabled_path.parent() {
-        fs::create_dir_all(dir)?;
-    }
-
     if !enabled_path.exists() {
         symlink(&available_path, &enabled_path)?;
     }
