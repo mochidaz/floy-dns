@@ -3,6 +3,7 @@ use std::fs;
 use std::io::{Error, ErrorKind, Result};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
+use crate::parser::parser::validate_config;
 
 const SITES_AVAILABLE_BASE: &str = "/etc/nginx/sites-available";
 const SITES_ENABLED_BASE: &str = "/etc/nginx/sites-enabled";
@@ -23,7 +24,6 @@ pub fn create_domain(
     user_id: &str,
     business_id: &str,
     domain: &str,
-    page_id: &str,
     cfg: &Config,
 ) -> Result<()> {
     let (available_path, enabled_path) = get_domain_paths(user_id, business_id);
@@ -42,7 +42,7 @@ pub fn create_domain(
     index index.html;
 
     location / {{
-        rewrite ^/$ /{page_id} break;
+        return 404;
     }}
 }}
 "#,
@@ -86,25 +86,31 @@ pub fn add_slug_page(
     user_id: &str,
     business_id: &str,
     slug: &str,
-    new_site: &str,
-    rewrite_target: Option<&str>,
+    site_id: &str,
+    base_path: &str,
 ) -> Result<()> {
     let (available_path, _) = get_domain_paths(user_id, business_id);
 
     let mut content = fs::read_to_string(&available_path)?;
 
-    let target = rewrite_target.unwrap_or(&format!("/{}/index.html", new_site));
+    let target = format!("/{}/index.html", site_id);
 
     let location_block = format!(
         r#"
-    location /{slug} {{
-        rewrite ^/{slug}$ {} break;
-    }}
+location /{} {{
+    rewrite ^/{}$ {} break;
+}}
 "#,
-        slug = slug,
+        slug,
+        slug,
+        target
     );
 
-    fs::write(&available_path, content)?;
+    content.push_str(&location_block);
+
+    fs::write(&available_path, &content)?;
+
+    validate_config(Path::new(&available_path))?;
 
     Ok(())
 }

@@ -55,7 +55,6 @@ pub struct SubdomainRequest {
     pub user_id: String,
     pub business_id: String,
     pub subdomain: String,
-    pub page_id: String,
 }
 
 #[derive(Deserialize)]
