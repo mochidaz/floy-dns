@@ -193,7 +193,6 @@ pub async fn create_domain_endpoint(
         &req.user_id,
         &req.business_id,
         &req.subdomain,
-        &req.page_id,
         &cfg,
     )
     .map_err(|_| Status::InternalServerError)?;
@@ -242,7 +241,7 @@ pub async fn add_slug_page_endpoint(
         &req.business_id,
         &req.slug,
         &req.site_id,
-        req.rewrite_target.as_deref(),
+        &cfg.base_url,
     )
     .map_err(|_| Status::InternalServerError)?;
     Ok(Json(json!({
