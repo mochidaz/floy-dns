@@ -217,7 +217,7 @@ pub async fn delete_domain_endpoint(
         return Err(Status::NotFound);
     }
 
-    match cloudflare.delete_subdomain_dns_record(&req.domain) {
+    match cloudflare.delete_subdomain_dns_record(&req.domain).await {
         Ok(_) => {}
         Err(_) => return Err(Status::InternalServerError),
     }
