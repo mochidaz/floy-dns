@@ -4,4 +4,3 @@ test.txt
 dev.sh
 .env
 database.db
-Cargo.lock
