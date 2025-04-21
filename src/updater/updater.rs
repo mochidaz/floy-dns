@@ -133,9 +133,10 @@ pub fn update_slug_page(
             let target = rewrite_target.unwrap_or(&format!("/{}/index.html", new_site));
             let new_block = format!(
                 r#"location /{slug} {{
-        rewrite ^/{slug}$ {} break;
+        rewrite ^/{slug}$ {target} break;
     }}"#,
                 slug = slug,
+                target = target
             );
             content.replace_range(start..end_index, &new_block);
             fs::write(&available_path, content)?;
